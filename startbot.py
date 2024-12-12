@@ -108,18 +108,21 @@ def start_bot():
             text=True  # Memastikan input dalam format teks (bukan byte)
         )
 
-        # Jeda sebelum menjawab pertanyaan
         console_logger.info("Menunggu bot siap menerima input...")
         time.sleep(2)  # Jeda awal agar bot siap
 
-        # Mengirimkan jawaban otomatis ke bot dengan jeda di antaranya
-        for input_data in config["inputs"]:
-            current_process.stdin.write(input_data)  # Kirim input ke proses
-            current_process.stdin.flush()  # Pastikan data langsung dikirimkan
-            console_logger.info(f"{input_data.strip()}")
-            time.sleep(0.5)  # Jeda 0.5 detik di antara jawaban
+        # Kirim input jika use_inputs diaktifkan
+        if config.get("use_inputs", True):  # Default adalah True jika tidak ada konfigurasi
+            console_logger.info("Mengirim input otomatis ke bot...")
+            for input_data in config["inputs"]:
+                current_process.stdin.write(input_data)  # Kirim input ke proses
+                current_process.stdin.flush()  # Pastikan data langsung dikirimkan
+                console_logger.info(f"{input_data.strip()}")
+                time.sleep(0.5)  # Jeda 0.5 detik di antara jawaban
+            current_process.stdin.close()  # Tutup input setelah selesai menulis
+        else:
+            console_logger.info("Input otomatis dinonaktifkan. Bot berjalan tanpa input.")
 
-        current_process.stdin.close()  # Tutup input setelah selesai menulis
         console_logger.info("Skrip bot berhasil dijalankan.")
     except FileNotFoundError:
         error_logger.error("Python3 tidak ditemukan. Pastikan Python3 sudah terinstal.")
