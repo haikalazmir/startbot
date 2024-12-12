@@ -1,12 +1,14 @@
 {
-  "monitoring_folder": ".", 
-  "data_file_path": "data.txt", 
-  "python_script_path": "main.py", 
-  "restart_delay": 1,
-  "use_inputs": false, 
+  "monitoring_folder": ".",
+  "data_file_path": "data.txt",
+  "python_script_path": "main.py",
+  "node_script_path": "bot.js",
+  "restart_delay": 5,
+  "use_inputs": false,
   "inputs": [
-    "input1\n",
-    "input2\n",
-    "input3\n"
-  ]
+    "y\n",
+    "y\n",
+    "1\n"
+  ],
+  "script_type": "python"
 }

@@ -28,15 +28,15 @@ console_logger.addHandler(console_handler)
 config = {}
 
 def resolve_path(path):
-    """Konversi path relatif menjadi absolut."""
+    """Konversi path relatif menjadi absolut berdasarkan lokasi skrip yang sedang dijalankan."""
     if not os.path.isabs(path):
-        return os.path.abspath(os.path.join(os.getcwd(), path))
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), path))
     return path
 
 # Fungsi untuk membaca konfigurasi dari file settings.json
 def load_config():
     global config
-    config_path = os.path.join(os.getcwd(), 'settings.json')  # Pastikan path universal
+    config_path = 'settings.json'  # Menggunakan path relatif ke lokasi skrip utama
     try:
         with open(config_path, 'r') as f:
             config = json.load(f)
@@ -44,6 +44,7 @@ def load_config():
         config["monitoring_folder"] = resolve_path(config["monitoring_folder"])
         config["data_file_path"] = resolve_path(config["data_file_path"])
         config["python_script_path"] = resolve_path(config["python_script_path"])
+        config["node_script_path"] = resolve_path(config["node_script_path"])
         console_logger.info("Konfigurasi berhasil dimuat.")
     except FileNotFoundError:
         error_logger.error(f"File konfigurasi {config_path} tidak ditemukan. Pastikan file tersedia.")
@@ -97,13 +98,23 @@ def restart_bot():
     start_bot()
 
 def start_bot():
-    """Menjalankan skrip Python sebagai bot."""
+    """Menjalankan skrip bot dengan perintah yang sesuai (Python atau Node.js)."""
     global current_process
-    python_command = "python" if platform.system() == "Windows" else "python3"
+    script_type = config.get("script_type", "python")  # Dapatkan tipe skrip dari konfigurasi
+    if script_type == "python":
+        command = "python" if platform.system() == "Windows" else "python3"
+        script_path = config["python_script_path"]
+    elif script_type == "node":
+        command = "node"  # Gunakan "node" untuk menjalankan skrip Node.js
+        script_path = config["node_script_path"]
+    else:
+        error_logger.error(f"Tipe skrip {script_type} tidak valid. Hanya mendukung 'python' atau 'node'.")
+        return
+    
     try:
-        # Menjalankan main.py sebagai proses baru dengan input otomatis
+        # Menjalankan skrip dengan perintah yang sesuai (Python atau Node.js)
         current_process = subprocess.Popen(
-            [python_command, config["python_script_path"]],
+            [command, script_path],
             stdin=subprocess.PIPE,  # Mengatur stdin agar dapat mengirimkan input
             text=True  # Memastikan input dalam format teks (bukan byte)
         )
@@ -113,19 +124,14 @@ def start_bot():
 
         # Kirim input jika use_inputs diaktifkan
         if config.get("use_inputs", True):  # Default adalah True jika tidak ada konfigurasi
-            console_logger.info("Mengirim input otomatis ke bot...")
             for input_data in config["inputs"]:
-                current_process.stdin.write(input_data)  # Kirim input ke proses
+                current_process.stdin.write(input_data + "\n")  # Menambahkan '\n' untuk menekan Enter
                 current_process.stdin.flush()  # Pastikan data langsung dikirimkan
-                console_logger.info(f"{input_data.strip()}")
-                time.sleep(0.5)  # Jeda 0.5 detik di antara jawaban
+                time.sleep(1)  # Jeda 0.5 detik di antara jawaban
             current_process.stdin.close()  # Tutup input setelah selesai menulis
-        else:
-            console_logger.info("Input otomatis dinonaktifkan. Bot berjalan tanpa input.")
 
-        console_logger.info("Skrip bot berhasil dijalankan.")
     except FileNotFoundError:
-        error_logger.error("Python3 tidak ditemukan. Pastikan Python3 sudah terinstal.")
+        error_logger.error(f"{command} tidak ditemukan. Pastikan {command} sudah terinstal.")
     except Exception as e:
         error_logger.error(f"Terjadi kesalahan: {e}")
 
