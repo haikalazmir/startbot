@@ -1,0 +1,11 @@
+{
+  "monitoring_folder": ".", 
+  "data_file_path": "data.txt", 
+  "python_script_path": "main.py", 
+  "restart_delay": 1, 
+  "inputs": [
+    "input1\n",
+    "input2\n",
+    "input3\n"
+  ]
+}
