@@ -42,7 +42,6 @@ def load_config():
             config = json.load(f)
         # Konversi path relatif menjadi absolut
         config["monitoring_folder"] = resolve_path(config["monitoring_folder"])
-        config["data_file_path"] = resolve_path(config["data_file_path"])
         config["python_script_path"] = resolve_path(config["python_script_path"])
         config["node_script_path"] = resolve_path(config["node_script_path"])
         console_logger.info("Konfigurasi berhasil dimuat.")
@@ -57,18 +56,17 @@ def load_config():
 current_process = None
 
 class FolderWatcher(FileSystemEventHandler):
-    """Handler untuk memantau perubahan pada folder."""
-    def on_modified(self, event):
+    """Handler untuk memantau perubahan pada seluruh isi folder."""
+    def on_any_event(self, event):
         global current_process
 
-        # Abaikan perubahan pada folder
+        # Abaikan perubahan pada folder yang sama tanpa file baru
         if event.is_directory:
             return
 
-        # Cek perubahan pada file yang dipantau
-        if os.path.abspath(event.src_path) == os.path.abspath(config["data_file_path"]):
-            console_logger.info(f"Perubahan terdeteksi pada file: {event.src_path}")
-            restart_bot()
+        # Restart bot jika ada perubahan dalam folder yang diawasi
+        console_logger.info(f"Perubahan terdeteksi pada: {event.src_path} ({event.event_type})")
+        restart_bot()
 
 def stop_bot():
     """Menghentikan proses bot jika masih aktif."""
@@ -127,7 +125,7 @@ def start_bot():
             for input_data in config["inputs"]:
                 current_process.stdin.write(input_data + "\n")  # Menambahkan '\n' untuk menekan Enter
                 current_process.stdin.flush()  # Pastikan data langsung dikirimkan
-                time.sleep(1)  # Jeda 0.5 detik di antara jawaban
+                time.sleep(1)  # Jeda 1 detik di antara jawaban
             current_process.stdin.close()  # Tutup input setelah selesai menulis
 
     except FileNotFoundError:
@@ -139,8 +137,8 @@ def start_monitoring():
     """Mulai memantau folder."""
     event_handler = FolderWatcher()
     observer = Observer()
-    # Memantau folder berdasarkan konfigurasi
-    observer.schedule(event_handler, path=config["monitoring_folder"], recursive=False)
+    # Memantau seluruh folder berdasarkan konfigurasi
+    observer.schedule(event_handler, path=config["monitoring_folder"], recursive=True)
     observer.start()
     try:
         while True:

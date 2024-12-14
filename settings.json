@@ -1,6 +1,5 @@
 {
   "monitoring_folder": ".",
-  "data_file_path": "data.txt",
   "python_script_path": "main.py",
   "node_script_path": "bot.js",
   "restart_delay": 5,
