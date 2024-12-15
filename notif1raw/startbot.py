@@ -38,22 +38,18 @@ def load_config():
     global config
     config_path = 'settings.json'  # Menggunakan path relatif ke lokasi skrip utama
     try:
-        # Membuka file dengan encoding UTF-8
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, 'r') as f:
             config = json.load(f)
-        # Konversi path relatif menjadi absolut untuk semua file yang diawasi
-        config["files_to_watch"] = [resolve_path(file) for file in config["files_to_watch"]]
+        # Konversi path relatif menjadi absolut
+        config["monitoring_folder"] = resolve_path(config["monitoring_folder"])
         config["python_script_path"] = resolve_path(config["python_script_path"])
         config["node_script_path"] = resolve_path(config["node_script_path"])
-        console_logger.info("Konfigurasi berhasil dimuat.")
+        console_logger.info(f"Konfigurasi berhasil dimuat. Nama Bot: {config['bot_name']}")
     except FileNotFoundError:
         error_logger.error(f"File konfigurasi {config_path} tidak ditemukan. Pastikan file tersedia.")
         exit(1)
     except json.JSONDecodeError:
         error_logger.error(f"Format file {config_path} tidak valid. Periksa isinya.")
-        exit(1)
-    except UnicodeDecodeError:
-        error_logger.error(f"Terjadi masalah saat membaca file konfigurasi. Pastikan file {config_path} menggunakan encoding UTF-8.")
         exit(1)
 
 def send_telegram_notification(message):
@@ -68,16 +64,15 @@ def send_telegram_notification(message):
     telegram_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
         'chat_id': chat_id,
-        'text': message,
-        'parse_mode': 'HTML'  # Pastikan Telegram memproses emotikon dan karakter khusus dengan benar
+        'text': message
     }
     
     try:
         response = requests.post(telegram_url, data=payload)
-        if response.ok:
+        if response.status_code == 200:
             console_logger.info(f"Notifikasi dikirim ke Telegram: {message}")
         else:
-            error_logger.error(f"Gagal mengirim notifikasi ke Telegram: {response.status_code} - {response.text}")
+            error_logger.error(f"Gagal mengirim notifikasi ke Telegram: {response.status_code}")
     except requests.exceptions.RequestException as e:
         error_logger.error(f"Error saat mengirim notifikasi ke Telegram: {e}")
 
@@ -85,27 +80,17 @@ def send_telegram_notification(message):
 current_process = None
 
 class FolderWatcher(FileSystemEventHandler):
-    """Handler untuk memantau perubahan pada file tertentu yang didefinisikan dalam konfigurasi."""
-    
-    def on_modified(self, event):
-        """Memantau perubahan pada file yang diawasi."""
-        if event.is_directory:
-            return
-        
-        # Cek apakah file yang diubah ada dalam daftar files_to_watch
-        if event.src_path in config["files_to_watch"]:
-            console_logger.info(f"Perubahan terdeteksi pada file yang diawasi: {event.src_path} ({event.event_type})")
-            restart_bot()
+    """Handler untuk memantau perubahan pada seluruh isi folder."""
+    def on_any_event(self, event):
+        global current_process
 
-    def on_created(self, event):
-        """Memantau file baru yang ditambahkan di folder yang diawasi."""
+        # Abaikan perubahan pada folder yang sama tanpa file baru
         if event.is_directory:
             return
-        
-        # Cek apakah file yang baru dibuat ada dalam daftar files_to_watch
-        if event.src_path in config["files_to_watch"]:
-            console_logger.info(f"File baru terdeteksi: {event.src_path} ({event.event_type})")
-            restart_bot()
+
+        # Restart bot jika ada perubahan dalam folder yang diawasi
+        console_logger.info(f"Perubahan terdeteksi pada: {event.src_path} ({event.event_type})")
+        restart_bot()
 
 def stop_bot():
     """Menghentikan proses bot jika masih aktif."""
@@ -131,10 +116,8 @@ def restart_bot():
     console_logger.info(f"Menunggu {config['restart_delay']} detik sebelum memulai ulang bot...")
     time.sleep(config['restart_delay'])
     stop_bot()
-    restart_message = config["notifications"].get("restart_message", "⏳🌾 Bot {bot_name} sedang dimulai ulang... 🔄")
-    restart_message = restart_message.format(bot_name=config["bot_name"])
-    send_telegram_notification(restart_message)
     console_logger.info("Memulai ulang bot...")
+    send_telegram_notification(f"Bot {config['bot_name']} sedang dimulai ulang...")
     start_bot()
 
 def start_bot():
@@ -160,9 +143,7 @@ def start_bot():
         )
 
         console_logger.info("Menunggu bot siap menerima input...")
-        start_message = config["notifications"].get("start_message", "⏳🌾 {bot_name} telah dimulai! 🚀")
-        start_message = start_message.format(bot_name=config["bot_name"])
-        send_telegram_notification(start_message)
+        send_telegram_notification(f"Bot {config['bot_name']} telah dimulai.")
         time.sleep(2)  # Jeda awal agar bot siap
 
         # Kirim input jika use_inputs diaktifkan
@@ -177,18 +158,13 @@ def start_bot():
         error_logger.error(f"{command} tidak ditemukan. Pastikan {command} sudah terinstal.")
     except Exception as e:
         error_logger.error(f"Terjadi kesalahan: {e}")
-        error_message = config["notifications"].get("error_message", "⏳🌾 Error terjadi pada bot {bot_name}: {error_message} ⚠️")
-        error_message = error_message.format(bot_name=config["bot_name"], error_message=str(e))
-        send_telegram_notification(error_message)
 
 def start_monitoring():
-    """Mulai memantau file tertentu dalam daftar files_to_watch."""
+    """Mulai memantau folder."""
     event_handler = FolderWatcher()
     observer = Observer()
-    # Memantau direktori dari setiap file dalam files_to_watch
-    for file_to_watch in config["files_to_watch"]:
-        directory_to_watch = os.path.dirname(file_to_watch)  # Dapatkan direktori dari path file
-        observer.schedule(event_handler, path=directory_to_watch, recursive=False)
+    # Memantau seluruh folder berdasarkan konfigurasi
+    observer.schedule(event_handler, path=config["monitoring_folder"], recursive=True)
     observer.start()
     try:
         while True:

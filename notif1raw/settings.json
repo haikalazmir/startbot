@@ -1,0 +1,16 @@
+{
+  "monitoring_folder": ".",
+  "python_script_path": "main.py",
+  "node_script_path": "bot.js",
+  "restart_delay": 1,
+  "use_inputs": false,
+  "inputs": [
+    "y\n",
+    "y\n",
+    "1\n"
+  ],
+  "script_type": "python",
+  "bot_name": "MyAwesomeBot",
+  "telegram_bot_token": "7260481386:AAG0H890L87giKWE9PEhqXmyuioSXr07TX0",
+  "telegram_chat_id": "1021633962"
+}

@@ -1,0 +1,2 @@
+Bot Telegram:
+Jika bot Anda memiliki file data (misalnya, file JSON untuk balasan otomatis), perubahan pada file ini akan langsung diperbarui tanpa perlu menghentikan proses secara manual.

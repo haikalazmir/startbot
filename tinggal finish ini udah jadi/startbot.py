@@ -41,8 +41,8 @@ def load_config():
         # Membuka file dengan encoding UTF-8
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
-        # Konversi path relatif menjadi absolut untuk semua file yang diawasi
-        config["files_to_watch"] = [resolve_path(file) for file in config["files_to_watch"]]
+        # Konversi path relatif menjadi absolut
+        config["monitoring_folder"] = resolve_path(config["monitoring_folder"])
         config["python_script_path"] = resolve_path(config["python_script_path"])
         config["node_script_path"] = resolve_path(config["node_script_path"])
         console_logger.info("Konfigurasi berhasil dimuat.")
@@ -85,27 +85,17 @@ def send_telegram_notification(message):
 current_process = None
 
 class FolderWatcher(FileSystemEventHandler):
-    """Handler untuk memantau perubahan pada file tertentu yang didefinisikan dalam konfigurasi."""
-    
-    def on_modified(self, event):
-        """Memantau perubahan pada file yang diawasi."""
-        if event.is_directory:
-            return
-        
-        # Cek apakah file yang diubah ada dalam daftar files_to_watch
-        if event.src_path in config["files_to_watch"]:
-            console_logger.info(f"Perubahan terdeteksi pada file yang diawasi: {event.src_path} ({event.event_type})")
-            restart_bot()
+    """Handler untuk memantau perubahan pada seluruh isi folder."""
+    def on_any_event(self, event):
+        global current_process
 
-    def on_created(self, event):
-        """Memantau file baru yang ditambahkan di folder yang diawasi."""
+        # Abaikan perubahan pada folder yang sama tanpa file baru
         if event.is_directory:
             return
-        
-        # Cek apakah file yang baru dibuat ada dalam daftar files_to_watch
-        if event.src_path in config["files_to_watch"]:
-            console_logger.info(f"File baru terdeteksi: {event.src_path} ({event.event_type})")
-            restart_bot()
+
+        # Restart bot jika ada perubahan dalam folder yang diawasi
+        console_logger.info(f"Perubahan terdeteksi pada: {event.src_path} ({event.event_type})")
+        restart_bot()
 
 def stop_bot():
     """Menghentikan proses bot jika masih aktif."""
@@ -182,13 +172,11 @@ def start_bot():
         send_telegram_notification(error_message)
 
 def start_monitoring():
-    """Mulai memantau file tertentu dalam daftar files_to_watch."""
+    """Mulai memantau folder."""
     event_handler = FolderWatcher()
     observer = Observer()
-    # Memantau direktori dari setiap file dalam files_to_watch
-    for file_to_watch in config["files_to_watch"]:
-        directory_to_watch = os.path.dirname(file_to_watch)  # Dapatkan direktori dari path file
-        observer.schedule(event_handler, path=directory_to_watch, recursive=False)
+    # Memantau seluruh folder berdasarkan konfigurasi
+    observer.schedule(event_handler, path=config["monitoring_folder"], recursive=True)
     observer.start()
     try:
         while True:

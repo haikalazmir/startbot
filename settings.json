@@ -1,13 +1,24 @@
 {
-  "monitoring_folder": ".",
-  "python_script_path": "main.py",
+  "bot_name": "MyBot",
+  "files_to_watch": [
+      "data.txt",
+      "timefarm1.sha"
+  ],
+  "python_script_path": "./bot.py",
   "node_script_path": "bot.js",
-  "restart_delay": 5,
-  "use_inputs": false,
+  "script_type": "node",
+  "restart_delay": 1,
+  "use_inputs": true,
   "inputs": [
-    "y\n",
+    "n\n",
     "y\n",
     "1\n"
   ],
-  "script_type": "python"
+  "notifications": {
+      "start_message": "⏳🌾 {bot_name} has started! 🚀",
+      "restart_message": "⏳🌾 Bot {bot_name} is restarting... 🔄",
+      "error_message": "⏳🌾 Error in bot {bot_name}: {error_message} ⚠️"
+  },
+  "telegram_bot_token": "7260481386:AAG0H890L87giKWE9PEhqXmyuioSXr07TX0",
+  "telegram_chat_id": "1021633962"
 }
