@@ -7,6 +7,7 @@ import requests
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import logging
+import threading
 
 # Konfigurasi Logging
 log_file_path = os.path.join(os.getcwd(), "log.txt")
@@ -27,6 +28,10 @@ console_logger.addHandler(console_handler)
 
 # Global variables untuk konfigurasi
 config = {}
+
+# Timer global untuk menunda tindakan
+restart_timer = None
+debounce_interval = 15  # Durasi tunggu (detik)
 
 def resolve_path(path):
     """Konversi path relatif menjadi absolut berdasarkan lokasi skrip yang sedang dijalankan."""
@@ -84,6 +89,19 @@ def send_telegram_notification(message):
 # Proses bot yang sedang berjalan
 current_process = None
 
+def restart_bot_with_debounce():
+    """Memulai ulang bot dengan logika debounce (menunggu perubahan tidak ada selama interval tertentu)."""
+    global restart_timer
+
+    # Batalkan timer sebelumnya jika ada
+    if restart_timer:
+        restart_timer.cancel()
+
+    # Mulai timer baru untuk restart bot
+    restart_timer = threading.Timer(debounce_interval, restart_bot)
+    restart_timer.start()
+    console_logger.info(f"Menunggu {debounce_interval} detik untuk memastikan tidak ada perubahan lagi...")
+
 class FolderWatcher(FileSystemEventHandler):
     """Handler untuk memantau perubahan pada file tertentu yang didefinisikan dalam konfigurasi."""
     
@@ -95,7 +113,7 @@ class FolderWatcher(FileSystemEventHandler):
         # Cek apakah file yang diubah ada dalam daftar files_to_watch
         if event.src_path in config["files_to_watch"]:
             console_logger.info(f"Perubahan terdeteksi pada file yang diawasi: {event.src_path} ({event.event_type})")
-            restart_bot()
+            restart_bot_with_debounce()  # Gunakan debounce logic
 
     def on_created(self, event):
         """Memantau file baru yang ditambahkan di folder yang diawasi."""
@@ -105,7 +123,7 @@ class FolderWatcher(FileSystemEventHandler):
         # Cek apakah file yang baru dibuat ada dalam daftar files_to_watch
         if event.src_path in config["files_to_watch"]:
             console_logger.info(f"File baru terdeteksi: {event.src_path} ({event.event_type})")
-            restart_bot()
+            restart_bot_with_debounce()  # Gunakan debounce logic
 
 def stop_bot():
     """Menghentikan proses bot jika masih aktif."""
